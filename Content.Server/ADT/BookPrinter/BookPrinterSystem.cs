@@ -8,9 +8,10 @@ using Content.Server.Popups;
 using Content.Server.Power.Components;
 using Content.Shared.ADT.BookPrinter;
 using Content.Shared.ADT.BookPrinter.Components;
-using Content.Shared.Examine;
+using Content.Shared.ADT.CCVar;
 using Content.Shared.Audio;
 using Content.Shared.Containers.ItemSlots;
+using Content.Shared.Examine;
 using Content.Shared.Paper;
 using Content.Shared.Power;
 using Content.Shared.Tag;
@@ -22,7 +23,9 @@ using Content.Shared.Construction.Components;
 using Robust.Server.GameObjects;
 using Robust.Shared.Audio;
 using Robust.Shared.Audio.Systems;
+using Robust.Shared.Configuration;
 using Robust.Shared.Containers;
+using Robust.Shared.Timing;
 
 namespace Content.Server.ADT.BookPrinter
 {
@@ -30,6 +33,8 @@ namespace Content.Server.ADT.BookPrinter
     public sealed partial class BookPrinterSystem : EntitySystem
     {
         [Dependency] private readonly SharedAudioSystem _audio = default!;
+        [Dependency] private readonly IGameTiming _timing = default!;
+        [Dependency] private readonly IConfigurationManager _configurationManager = default!;
         [Dependency] private readonly SharedAmbientSoundSystem _ambientSoundSystem = default!;
         [Dependency] private readonly UserInterfaceSystem _userInterfaceSystem = default!;
         [Dependency] private readonly AppearanceSystem _appearanceSystem = default!;
@@ -41,7 +46,7 @@ namespace Content.Server.ADT.BookPrinter
         [Dependency] private readonly TagSystem _tag = default!;
 
         public readonly List<SharedBookPrinterEntry> BookPrinterEntries = new();
-
+        private float _cooldown;
         public override void Initialize()
         {
             base.Initialize();
@@ -57,6 +62,23 @@ namespace Content.Server.ADT.BookPrinter
             SubscribeLocalEvent<BookPrinterComponent, PowerChangedEvent>(OnPowerChanged);
             SubscribeLocalEvent<BookPrinterComponent, UnanchorAttemptEvent>(OnUnanchorAttempt);
             SubscribeLocalEvent<BookPrinterCartridgeComponent, ExaminedEvent>(OnExamined);
+
+            _cooldown = _configurationManager.GetCVar(ADTBookPrinterCCVars.PrinterUploadCooldown);
+            Subs.CVar(_configurationManager, ADTBookPrinterCCVars.PrinterUploadCooldown, SetCooldownChange);
+        }
+
+        private void SetCooldownChange(float obj)
+        {
+            var diff = obj - _cooldown;
+
+            var query = AllEntityQuery<BookPrinterComponent>();
+
+            while (query.MoveNext(out var comp))
+            {
+                comp.NextUpload += TimeSpan.FromSeconds(diff);
+            }
+
+            _cooldown = obj;
         }
 
         public override void Update(float frameTime)
@@ -79,6 +101,9 @@ namespace Content.Server.ADT.BookPrinter
                     if (printer.WorkTimeRemaining <= 0.0f)
                         ProcessTask((uid, printer));
                 }
+
+                printer.Cooldown = false;
+                printer.NextUpload += TimeSpan.FromSeconds(_cooldown);
             }
         }
 
@@ -90,12 +115,12 @@ namespace Content.Server.ADT.BookPrinter
 
             _appearanceSystem.SetData(ent, BookPrinterVisualLayers.Working, workInProgress);
 
-            if (EntityManager.TryGetComponent<BookPrinterVisualsComponent>(ent, out BookPrinterVisualsComponent? visualsComp))
+            if (EntityManager.TryGetComponent<BookPrinterVisualsComponent>(ent, out var visualsComp))
             {
                 visualsComp.DoWorkAnimation = workInProgress;
             }
 
-            if (cartridge is not null && EntityManager.TryGetComponent<BookPrinterCartridgeComponent>(cartridge, out BookPrinterCartridgeComponent? cartridgeComp))
+            if (cartridge is not null && EntityManager.TryGetComponent<BookPrinterCartridgeComponent>(cartridge, out var cartridgeComp))
             {
                 _appearanceSystem.SetData(ent, BookPrinterVisualLayers.Slotted, true);
                 _appearanceSystem.SetData(ent, BookPrinterVisualLayers.Full, cartridgeComp.CurrentCharge == cartridgeComp.FullCharge);
@@ -153,11 +178,6 @@ namespace Content.Server.ADT.BookPrinter
 
             DecreaseCartridgeCharge(bookPrinter);
             return true;
-        }
-
-        private void OnExamined(EntityUid uid, BookPrinterCartridgeComponent component, ExaminedEvent args)
-        {
-            args.PushText(Loc.GetString("book-printer-cartridge-component-examine", ("charge", (int)(component.CurrentCharge / component.FullCharge * 100))));
         }
 
         private void OnPowerChanged(EntityUid uid, BookPrinterComponent component, ref PowerChangedEvent args)
@@ -237,6 +257,7 @@ namespace Content.Server.ADT.BookPrinter
                 var content = GetContent(bookContainer.Value);
                 if (content is not null)
                     UploadBookContent(content);
+
                 SetupTask(bookPrinter, "Uploading");
             }
 
@@ -248,6 +269,7 @@ namespace Content.Server.ADT.BookPrinter
             var bookContainer = _itemSlotsSystem.GetItemOrNull(bookPrinter, "bookSlot");
             if (bookContainer is not { Valid: true })
                 return;
+
             if (BookPrinterEntries.Count() < 1)
                 return;
 
@@ -270,6 +292,7 @@ namespace Content.Server.ADT.BookPrinter
             var bookContainer = _itemSlotsSystem.GetItemOrNull(bookPrinter, "bookSlot");
             if (bookContainer is not { Valid: true })
                 return;
+
             if (BookPrinterEntries.Count() < 1)
                 return;
 
@@ -305,7 +328,6 @@ namespace Content.Server.ADT.BookPrinter
 
                 if (bookPrinter.Comp.WorkType == "Printing" && bookPrinter.Comp.PrintBookEntry is not null)
                     SetContent(bookContainer.Value, bookPrinter.Comp.PrintBookEntry, bookPrinter);
-
             }
 
             FlushTask(bookPrinter);
@@ -318,11 +340,13 @@ namespace Content.Server.ADT.BookPrinter
         private void SetupTask(Entity<BookPrinterComponent> bookPrinter, string? taskName)
         {
             SetLockOnAllSlots(bookPrinter, true);
+
             bookPrinter.Comp.WorkTimeRemaining = bookPrinter.Comp.WorkTime;
             bookPrinter.Comp.WorkType = taskName;
 
             _audio.PlayPvs(bookPrinter.Comp.WorkSound, bookPrinter, AudioParams.Default.WithVolume(5f));
             _ambientSoundSystem.SetAmbience(bookPrinter, true);
+
             UpdateVisuals(bookPrinter);
         }
 
@@ -337,6 +361,8 @@ namespace Content.Server.ADT.BookPrinter
             _ambientSoundSystem.SetAmbience(bookPrinter, false);
             UpdateVisuals(bookPrinter);
             UpdateUiState(bookPrinter);
+            bookPrinter.Comp.Cooldown = true;
+            bookPrinter.Comp.NextUpload = _timing.CurTime + TimeSpan.FromSeconds(_cooldown);
         }
 
         private void ClearContent(EntityUid? item)
@@ -441,7 +467,6 @@ namespace Content.Server.ADT.BookPrinter
                 return null;
 
             var paperComp = EnsureComp<PaperComponent>(item.Value);
-            var metadata = EnsureComp<MetaDataComponent>(item.Value);
 
             var sharedStamps = new List<SharedStampedData>();
 
@@ -462,9 +487,8 @@ namespace Content.Server.ADT.BookPrinter
         {
             var db = IoCManager.Resolve<IServerDbManager>();
 
-            BookPrinterEntry bookEntry = new BookPrinterEntry();
-
-            List<StampedData> stampData = new List<StampedData>();
+            var bookEntry = new BookPrinterEntry();
+            var stampData = new List<StampedData>();
 
             foreach (var entry in sharedBookEntry.StampedBy)
             {
@@ -498,6 +522,11 @@ namespace Content.Server.ADT.BookPrinter
 
             _popupSystem.PopupEntity(Loc.GetString("book-printer-component-access-denied"), uid);
             return false;
+        }
+
+        private void OnExamined(EntityUid uid, BookPrinterCartridgeComponent component, ExaminedEvent args)
+        {
+            args.PushText(Loc.GetString("book-printer-cartridge-component-examine", ("charge", (int)(component.CurrentCharge / component.FullCharge * 100))));
         }
     }
 }

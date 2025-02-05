@@ -9,12 +9,10 @@
     Gas:
       effects:
       - !type:GenericStatusEffect
-        # Filo tweak
         conditions:
         - !type:OrganType
           type: Novakid
           shouldHave: false
-        # Filo tweak
         key: SeeingRainbows
         component: SeeingRainbows
         type: Add
@@ -139,28 +137,28 @@
         conditions:
           - !type:ReagentThreshold
             reagent: Nitrium
-            min: 3
-        statusLifetime: 0.25
+            min: 1
+        statusLifetime: 0.5
         walkSpeedModifier: 1.5
         sprintSpeedModifier: 1.5
       - !type:GenericStatusEffect
         conditions:
         - !type:ReagentThreshold
-            min: 6
+            min: 20
         key: Stun
         time: 1
         type: Remove
       - !type:GenericStatusEffect
         conditions:
         - !type:ReagentThreshold
-            min: 6
+            min: 20
         key: KnockedDown
         time: 5
         type: Remove
       - !type:GenericStatusEffect
         conditions:
         - !type:ReagentThreshold
-            min: 6
+            min: 20
         key: ForcedSleep
         component: ForcedSleeping
         time: 15
@@ -169,7 +167,7 @@
         conditions:
           - !type:ReagentThreshold
             reagent: Nitrium
-            min: 9
+            min: 30
         scaleByQuantity: true
         ignoreResistances: true
         damage:

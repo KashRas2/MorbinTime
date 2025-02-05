@@ -12,7 +12,7 @@ public sealed partial class BookPrinterVisualizerSystem : VisualizerSystem<BookP
 
     protected override void OnAppearanceChange(EntityUid uid, BookPrinterVisualsComponent component, ref AppearanceChangeEvent args)
     {
-        if (args.Sprite == null || !EntityManager.TryGetComponent<ItemSlotsComponent>(uid, out var slotComp))
+        if (args.Sprite == null || !EntityManager.TryGetComponent<ItemSlotsComponent>(uid, out var slotComp) || slotComp == null)
             return;
 
         if (args.Sprite.LayerMapTryGet(BookPrinterVisualLayers.Working, out var workLayer))
@@ -22,7 +22,7 @@ public sealed partial class BookPrinterVisualizerSystem : VisualizerSystem<BookP
 
         if (args.Sprite.LayerMapTryGet(BookPrinterVisualLayers.Slotted, out var slotLayer))
         {
-            args.Sprite.LayerSetVisible(slotLayer, (_itemSlotsSystem.GetItemOrNull(uid, "cartridgeSlot") is not null));
+            args.Sprite.LayerSetVisible(slotLayer, _itemSlotsSystem.GetItemOrNull(uid, "cartridgeSlot") is not null);
         }
 
         var cartridge = _itemSlotsSystem.GetItemOrNull(uid, "cartridgeSlot");
