@@ -17,7 +17,6 @@ using Robust.Shared.Map;
 using Robust.Shared.Map.Components;
 using Robust.Shared.Prototypes;
 using Content.Shared.Station.Components;
-using FastAccessors;
 using Robust.Shared.Utility;
 using YamlDotNet.RepresentationModel;
 
@@ -47,23 +46,24 @@ namespace Content.IntegrationTests.Tests
         private static readonly string[] GameMaps =
         {
             // Corvax-Start
-            "CorvaxAvrite",
-            "CorvaxDelta",
-            "CorvaxSilly",
-            "CorvaxOutpost",
-            "CorvaxAstra",
-            "CorvaxGelta",
-            "CorvaxMaus",
-            "CorvaxIshimura",
-            "CorvaxPaper",
-            "CorvaxPilgrim",
-            "CorvaxSplit",
-            "CorvaxTerra",
-            "CorvaxFrame",
-            "CorvaxPearl",
-            "CorvaxTushkan",
-            "CorvaxGlacier",
-            "CorvaxAwesome",
+            // "CorvaxAvrite", // ADT-Comment
+            // "CorvaxDelta",
+            // "CorvaxSilly",
+            // "CorvaxOutpost",
+            // "CorvaxAstra",
+            // "CorvaxGelta",
+			// "CorvaxMaus",
+			// "CorvaxIshimura",
+			// "CorvaxPaper",
+			// "CorvaxCute",
+            // "CorvaxPilgrim",
+            // "CorvaxSplit",
+            // "CorvaxTerra",
+            // "CorvaxFrame",
+            // "CorvaxPearl",
+            // "CorvaxTushkan",
+            // "CorvaxGlacier",
+            // "CorvaxAwesome",
             // Corvax-End
             "Dev",
             "TestTeg",
@@ -82,6 +82,11 @@ namespace Content.IntegrationTests.Tests
             "Train",
             "Oasis",
             "Cog",
+            "Gate",
+            "Amber",
+            "Loop",
+            "Elkridge",
+            "Plasma",
             // ADT-Start
             "ADT_Avrit",
             "ADT_Bagel",
@@ -90,6 +95,7 @@ namespace Content.IntegrationTests.Tests
             "ADT_Fland",
             "ADT_Delta",
             "ADT_Marathon",
+            "ADT_Kerberos",
             "ADT_Saltern",
             "ADT_Packed",
             "ADT_Gemini",
