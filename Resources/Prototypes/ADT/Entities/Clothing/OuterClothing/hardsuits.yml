@@ -125,7 +125,7 @@
     sprintModifier: 0.9
 
 - type: entity
-  parent: ClothingOuterHardsuitBase
+  parent: [ClothingOuterHardsuitBase, BaseSecurityContraband]
   id: ADTBlueshieldSuit
   name: blueshield's hardsuit
   description: A rugged and mobile spacesuit for the lives of high-ranking members of Nanotrasen.
@@ -251,6 +251,8 @@
   - type: HeldSpeedModifier
   - type: ToggleableClothing
     clothingPrototype: ADTClothingHeadHelmetHardsuitDeathsquad
+  - type: DNALocker
+  - type: Unremoveable
 
 #Скафандры Киберсана
 - type: entity
