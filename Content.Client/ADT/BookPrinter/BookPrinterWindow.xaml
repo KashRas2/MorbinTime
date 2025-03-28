@@ -22,11 +22,11 @@
             <Button Name="ClearButton"
                     Access="Public"
                     Text="{Loc 'book-printer-window-clear-button'}"
-                    StyleClasses="OpenBoth"/>
+                    StyleClasses="ButtonSquare"/>
             <Button Name="CopyPasteButton"
                     Access="Public"
                     Text="{Loc 'book-printer-window-copy-button'}"
-                    StyleClasses="OpenBoth"/>
+                    StyleClasses="ButtonSquare"/>
             <Button Name="EjectButton"
                     Access="Public"
                     Text="{Loc 'book-printer-window-eject-button'}"

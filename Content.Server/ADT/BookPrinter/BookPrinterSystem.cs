@@ -183,9 +183,7 @@ namespace Content.Server.ADT.BookPrinter
         private void OnPowerChanged(EntityUid uid, BookPrinterComponent component, ref PowerChangedEvent args)
         {
             FlushTask((uid, component));
-
             SetLockOnAllSlots((uid, component), !args.Powered);
-
             UpdateVisuals((uid, component));
         }
 
@@ -255,7 +253,7 @@ namespace Content.Server.ADT.BookPrinter
             if (IsAuthorized(bookPrinter, entity, bookPrinter) && TryLowerCartridgeCharge(bookPrinter))
             {
                 var content = GetContent(bookContainer.Value);
-                if (content is not null)
+                if (content is not null && bookPrinter.Comp.Cooldown == false)
                     UploadBookContent(content);
 
                 SetupTask(bookPrinter, "Uploading");
@@ -323,10 +321,10 @@ namespace Content.Server.ADT.BookPrinter
 
             if (bookContainer is { Valid: true })
             {
-                if (bookPrinter.Comp.WorkType == "Clearing" || bookPrinter.Comp.WorkType == "Printing")
+                if (bookPrinter.Comp.WorkType == "Clearing" || bookPrinter.Comp.WorkType == "Printing" && bookPrinter.Comp.Cooldown == false)
                     ClearContent(bookContainer.Value);
 
-                if (bookPrinter.Comp.WorkType == "Printing" && bookPrinter.Comp.PrintBookEntry is not null)
+                if (bookPrinter.Comp.WorkType == "Printing" && bookPrinter.Comp.PrintBookEntry is not null && bookPrinter.Comp.Cooldown == false)
                     SetContent(bookContainer.Value, bookPrinter.Comp.PrintBookEntry, bookPrinter);
             }
 
@@ -348,6 +346,9 @@ namespace Content.Server.ADT.BookPrinter
             _ambientSoundSystem.SetAmbience(bookPrinter, true);
 
             UpdateVisuals(bookPrinter);
+
+            bookPrinter.Comp.Cooldown = true;
+            bookPrinter.Comp.NextUpload = _timing.CurTime + TimeSpan.FromSeconds(_cooldown);
         }
 
         private void FlushTask(Entity<BookPrinterComponent> bookPrinter)
@@ -361,8 +362,6 @@ namespace Content.Server.ADT.BookPrinter
             _ambientSoundSystem.SetAmbience(bookPrinter, false);
             UpdateVisuals(bookPrinter);
             UpdateUiState(bookPrinter);
-            bookPrinter.Comp.Cooldown = true;
-            bookPrinter.Comp.NextUpload = _timing.CurTime + TimeSpan.FromSeconds(_cooldown);
         }
 
         private void ClearContent(EntityUid? item)
