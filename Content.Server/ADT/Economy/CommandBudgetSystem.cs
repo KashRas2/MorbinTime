@@ -23,6 +23,6 @@ public sealed class CommandBudgetSystem : EntitySystem
             return;
 
         var pin = account.BankAccount.AccountPin;
-        _paper.SetContent((uid, EnsureComp<PaperComponent>(uid)) ,Loc. GetString("command-budget-pin-message", ("pin", pin)));
+        _paper.SetContent((uid, EnsureComp<PaperComponent>(uid)), Loc.GetString("command-budget-pin-message", ("pin", pin)));
     }
 }

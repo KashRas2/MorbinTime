@@ -4,8 +4,6 @@ using Content.Server.Access.Systems;
 using Content.Server.Cargo.Components;
 using Content.Server.Cargo.Systems;
 using Content.Server.CartridgeLoader;
-using Content.Server.Chat.Systems;
-using Content.Server.GameTicking;
 using Content.Server.Roles.Jobs;
 using Content.Server.Station.Systems;
 using Content.Shared.ADT.Economy;
@@ -28,19 +26,14 @@ public sealed class BankCardSystem : EntitySystem
     [Dependency] private readonly IdCardSystem _idCardSystem = default!;
     [Dependency] private readonly StationSystem _station = default!;
     [Dependency] private readonly CargoSystem _cargo = default!;
-    [Dependency] private readonly ChatSystem _chatSystem = default!;
     [Dependency] private readonly MobStateSystem _mobState = default!;
     [Dependency] private readonly InventorySystem _inventorySystem = default!;
     [Dependency] private readonly BankCartridgeSystem _bankCartridge = default!;
     [Dependency] private readonly JobSystem _job = default!;
-    [Dependency] private readonly GameTicker _gameTicker = default!;
     [Dependency] private readonly CartridgeLoaderSystem _cartridgeLoader = default!;
-
-    private const int SalaryDelay = 2700;
 
     private SalaryPrototype _salaries = default!;
     private readonly List<BankAccount> _accounts = new();
-    private float _salaryTimer;
 
     public override void Initialize()
     {
@@ -51,43 +44,32 @@ public sealed class BankCardSystem : EntitySystem
         SubscribeLocalEvent<PlayerSpawnCompleteEvent>(OnPlayerSpawned);
     }
 
-    public override void Update(float frameTime)
-    {
-        base.Update(frameTime);
-
-        if (_gameTicker.RunLevel != GameRunLevel.InRound)
-        {
-            _salaryTimer = 0f;
-            return;
-        }
-
-        _salaryTimer += frameTime;
-
-        if (_salaryTimer <= SalaryDelay)
-            return;
-
-        _salaryTimer = 0f;
-        PaySalary();
-    }
-
-    private void PaySalary()
+    public void PaySalary(int salary)
     {
         foreach (var account in _accounts.Where(account =>
-                     account.Mind is {Comp.UserId: not null, Comp.CurrentEntity: not null} &&
-                     _playerManager.TryGetSessionById(account.Mind.Value.Comp.UserId!.Value, out _) &&
-                     !_mobState.IsDead(account.Mind.Value.Comp.CurrentEntity!.Value)))
+            account.Mind is { Comp.UserId: not null, Comp.CurrentEntity: not null } &&
+            _playerManager.TryGetSessionById(account.Mind.Value.Comp.UserId!.Value, out _) &&
+            !_mobState.IsDead(account.Mind.Value.Comp.CurrentEntity!.Value)))
         {
-            account.Balance += GetSalary(account.Mind);
-        }
+            while (AllEntityQuery<StationBankAccountComponent>().MoveNext(out var uid, out var acc))
+            {
+                _cargo.UpdateBankAccount((uid, acc), -salary);
 
-        _chatSystem.DispatchGlobalAnnouncement(Loc.GetString("salary-pay-announcement"),
-            colorOverride: Color.FromHex("#18abf5"));
+                if (acc.Balance < salary)
+                    break;
+            }
+
+            TryChangeBalance(account.AccountId, salary);
+        }
     }
 
     private int GetSalary(EntityUid? mind)
     {
-        if (!_job.MindTryGetJob(mind, out var job) || !_salaries.Salaries.TryGetValue(job.ID, out var salary))
+        if (!_job.MindTryGetJob(mind, out var job))
             return 0;
+
+        if (!_salaries.Salaries.TryGetValue(job.ID, out var salary))
+            return 200;
 
         return salary;
     }
@@ -129,7 +111,7 @@ public sealed class BankCardSystem : EntitySystem
             if (!TryComp(mind.Mind, out MindComponent? mindComponent))
                 return;
 
-            bankAccount.Balance = GetSalary(mind.Mind) + 100;
+            bankAccount.Balance = GetSalary(mind.Mind);
             mindComponent.AddMemory(new Memory("PIN", bankAccount.AccountPin.ToString()));
             mindComponent.AddMemory(new Memory(Loc.GetString("character-info-memories-account-number"),
                 bankAccount.AccountId.ToString()));
